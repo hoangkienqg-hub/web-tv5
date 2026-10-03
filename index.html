@@ -1,0 +1,1178 @@
+# Create the index.html file containing the interactive quiz with Web Speech API for voice and Web Audio API for sound effects.
+html_content = """<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Khám Phá Thiên Nhiên Kì Thú - Trắc Nghiệm Tiếng Việt Lớp 5</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #48bb78;
+      --primary-dark: #2f855a;
+      --secondary: #ecc94b;
+      --accent: #4299e1;
+      --coral: #ed8936;
+      --correct: #38a169;
+      --wrong: #e53e3e;
+      --bg-cream: #fffaf0;
+      --card-bg: #ffffff;
+      --text-main: #2d3748;
+      --shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background: linear-gradient(135deg, #7ee8fa 0%, #80ff72 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+      color: var(--text-main);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Background floating clouds/leaves */
+    .bg-shape {
+      position: absolute;
+      opacity: 0.25;
+      pointer-events: none;
+      animation: floatSlow 18s ease-in-out infinite alternate;
+      z-index: 0;
+    }
+    .shape-1 { top: 5%; left: 8%; font-size: 50px; animation-duration: 14s; }
+    .shape-2 { top: 75%; left: 5%; font-size: 45px; animation-duration: 20s; }
+    .shape-3 { top: 15%; right: 8%; font-size: 55px; animation-duration: 16s; }
+    .shape-4 { bottom: 10%; right: 7%; font-size: 60px; animation-duration: 22s; }
+
+    @keyframes floatSlow {
+      0% { transform: translateY(0px) rotate(0deg); }
+      100% { transform: translateY(-30px) rotate(15deg); }
+    }
+
+    .game-card {
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(10px);
+      width: 100%;
+      max-width: 820px;
+      border-radius: 28px;
+      box-shadow: 0 20px 40px rgba(0, 70, 40, 0.2), 0 0 0 6px #ffffff;
+      padding: 30px;
+      position: relative;
+      z-index: 1;
+      border: 4px solid #bbf7d0;
+      transition: all 0.3s ease;
+    }
+
+    /* Screen containers */
+    .screen {
+      display: none;
+      flex-direction: column;
+      animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .screen.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.97) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* Header */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 3px dashed #bbf7d0;
+    }
+
+    .badge-topic {
+      background: linear-gradient(135deg, #48bb78, #38a169);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      box-shadow: 0 4px 10px rgba(72, 187, 120, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .score-badge {
+      background: #fef3c7;
+      color: #b45309;
+      border: 2px solid #fde68a;
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-weight: 800;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Progress bar */
+    .progress-container {
+      width: 100%;
+      height: 12px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      border: 2px solid #ffffff;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #48bb78, #38bdf8);
+      width: 0%;
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+
+    /* Question Box */
+    .question-box {
+      background: linear-gradient(135deg, #ebf8ff 0%, #f0fff4 100%);
+      border: 2.5px solid #a7f3d0;
+      border-radius: 20px;
+      padding: 22px;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .question-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .q-number {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      color: #059669;
+      font-size: 1.15rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .speech-status {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #2563eb;
+      background: #dbeafe;
+      padding: 3px 10px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .speech-status.speaking {
+      animation: pulse 1s infinite alternate;
+      background: #fef08a;
+      color: #854d0e;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.98); }
+      100% { transform: scale(1.05); }
+    }
+
+    .q-text {
+      font-size: 1.25rem;
+      font-weight: 700;
+      line-height: 1.5;
+      color: #1a202c;
+    }
+
+    /* Options Grid */
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .option-btn {
+      background: white;
+      border: 2.5px solid #e2e8f0;
+      border-radius: 18px;
+      padding: 14px 20px;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+      color: #334155;
+      outline: none;
+    }
+
+    .option-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      border-color: #6ee7b7;
+      background: #f0fdf4;
+      box-shadow: 0 8px 15px -3px rgba(16, 185, 129, 0.15);
+    }
+
+    .opt-tag {
+      background: #f1f5f9;
+      color: #475569;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+
+    .option-btn:hover:not(:disabled) .opt-tag {
+      background: #10b981;
+      color: white;
+    }
+
+    /* Result styles for options */
+    .option-btn.correct {
+      background: #dcfce7 !important;
+      border-color: #22c55e !important;
+      color: #14532d !important;
+    }
+    .option-btn.correct .opt-tag {
+      background: #22c55e;
+      color: white;
+    }
+
+    .option-btn.wrong {
+      background: #fee2e2 !important;
+      border-color: #ef4444 !important;
+      color: #7f1d1d !important;
+    }
+    .option-btn.wrong .opt-tag {
+      background: #ef4444;
+      color: white;
+    }
+
+    .option-btn:disabled {
+      cursor: default;
+    }
+
+    /* Explanation Box */
+    .explanation-box {
+      display: none;
+      background: #fefce8;
+      border: 2px dashed #facc15;
+      border-radius: 18px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      animation: popIn 0.3s ease;
+    }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .exp-title {
+      font-weight: 800;
+      font-size: 1rem;
+      color: #854d0e;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .exp-content {
+      font-size: 1rem;
+      line-height: 1.5;
+      color: #422006;
+      font-weight: 600;
+    }
+
+    /* Audio Replay & Controls */
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 1.05rem;
+      padding: 12px 24px;
+      border-radius: 16px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      outline: none;
+    }
+
+    .btn:active {
+      transform: translateY(2px);
+    }
+
+    .btn-audio {
+      background: #e0f2fe;
+      color: #0284c7;
+      border: 2px solid #bae6fd;
+    }
+    .btn-audio:hover {
+      background: #bae6fd;
+    }
+
+    .btn-next {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      margin-left: auto;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+    .btn-next:hover {
+      background: linear-gradient(135deg, #059669, #047857);
+      transform: translateY(-2px);
+    }
+
+    /* Start and Result Screens */
+    .center-screen {
+      text-align: center;
+      padding: 30px 10px;
+    }
+
+    .hero-icon {
+      font-size: 80px;
+      margin-bottom: 16px;
+      animation: bounce 2s infinite;
+      display: inline-block;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+
+    .screen-title {
+      font-family: 'Nunito', sans-serif;
+      font-size: 2.1rem;
+      font-weight: 900;
+      color: #065f46;
+      margin-bottom: 12px;
+    }
+
+    .screen-desc {
+      font-size: 1.15rem;
+      color: #475569;
+      max-width: 580px;
+      margin: 0 auto 30px;
+      line-height: 1.6;
+      font-weight: 600;
+    }
+
+    .btn-start {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white;
+      font-size: 1.3rem;
+      padding: 16px 40px;
+      border-radius: 999px;
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
+    }
+    .btn-start:hover {
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 14px 28px rgba(37, 99, 235, 0.45);
+    }
+
+    .score-summary {
+      background: #f8fafc;
+      border: 3px solid #e2e8f0;
+      border-radius: 24px;
+      padding: 24px;
+      max-width: 450px;
+      margin: 0 auto 30px;
+    }
+
+    .final-score-val {
+      font-family: 'Nunito', sans-serif;
+      font-size: 3.5rem;
+      font-weight: 900;
+      color: #10b981;
+      line-height: 1;
+      margin: 10px 0;
+    }
+
+    /* Confetti Canvas */
+    #confettiCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* Voice prompt banner */
+    .sound-tip {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-top: 15px;
+      font-weight: 600;
+    }
+
+    @media (max-width: 600px) {
+      .game-card {
+        padding: 20px 16px;
+        border-radius: 20px;
+      }
+      .q-text {
+        font-size: 1.1rem;
+      }
+      .option-btn {
+        font-size: 0.95rem;
+        padding: 12px 14px;
+      }
+      .screen-title {
+        font-size: 1.6rem;
+      }
+      .final-score-val {
+        font-size: 2.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating nature elements -->
+  <div class="bg-shape shape-1">🍃</div>
+  <div class="bg-shape shape-2">🍄</div>
+  <div class="bg-shape shape-3">⛅</div>
+  <div class="bg-shape shape-4">🌸</div>
+
+  <canvas id="confettiCanvas"></canvas>
+
+  <div class="game-card">
+
+    <!-- START SCREEN -->
+    <div id="startScreen" class="screen center-screen active">
+      <div class="hero-icon">🌲🏞️🐿️</div>
+      <h1 class="screen-title">Thử Thách: Thiên Nhiên Kì Thú</h1>
+      <p class="screen-desc">
+        Hành trình chinh phục 20 câu hỏi trắc nghiệm Tiếng Việt Lớp 5 (Bài 9 & 10).<br>
+        Có giọng đọc truyền cảm cho câu hỏi, đáp án và lời giải thích!
+      </p>
+      <div>
+        <button class="btn btn-start" id="btnStartGame">🚀 Bắt Đầu Ngay</button>
+      </div>
+      <p class="sound-tip">💡 Bật loa thiết bị để trải nghiệm âm thanh sống động nhất nhé!</p>
+    </div>
+
+    <!-- QUIZ SCREEN -->
+    <div id="quizScreen" class="screen">
+      <div class="header-bar">
+        <div class="badge-topic" id="topicBadge">
+          <span>🌿</span> <span id="topicName">Chủ điểm Bài 9 & 10</span>
+        </div>
+        <div class="score-badge">
+          <span>⭐</span> Điểm: <span id="currentScore">0</span>
+        </div>
+      </div>
+
+      <div class="progress-container">
+        <div class="progress-fill" id="progressBar"></div>
+      </div>
+
+      <div class="question-box">
+        <div class="question-meta">
+          <span class="q-number" id="questionNumber">Câu 1 / 20</span>
+          <span class="speech-status" id="voiceIndicator">
+            <span id="voiceIcon">🔊</span> <span id="voiceText">Đang đọc...</span>
+          </span>
+        </div>
+        <div class="q-text" id="questionText">Nội dung câu hỏi đang được tải...</div>
+      </div>
+
+      <div class="options-grid" id="optionsContainer">
+        <!-- Buttons loaded by JS -->
+      </div>
+
+      <div class="explanation-box" id="explanationBox">
+        <div class="exp-title">
+          <span>💡</span> <strong>Lời giải chi tiết:</strong>
+        </div>
+        <div class="exp-content" id="explanationText"></div>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn btn-audio" id="btnReplayAudio">
+          <span>🔊</span> Nghe lại
+        </button>
+        <button class="btn btn-next" id="btnNextQuestion" style="display: none;">
+          Tiếp theo <span>➡️</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- END / RESULT SCREEN -->
+    <div id="resultScreen" class="screen center-screen">
+      <div class="hero-icon" id="resultIcon">🎉</div>
+      <h1 class="screen-title" id="resultTitle">Hoàn Thành Xuất Sắc!</h1>
+      <div class="score-summary">
+        <p style="font-weight: 700; color: #64748b;">Tổng kết điểm số</p>
+        <div class="final-score-val" id="finalScore">20/20</div>
+        <p style="font-weight: 700;" id="resultFeedback">Em nắm rất vững kiến thức Bài 9 và 10!</p>
+      </div>
+      <div>
+        <button class="btn btn-start" id="btnRestart">🔄 Chơi Lại Lần Nữa</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- 20 QUESTIONS DATASET ---
+    const quizData = [
+      {
+        part: "Bài đọc: Cổng trời",
+        question: "Vì sao địa danh trong bài thơ lại được tác giả gọi là 'cổng trời'?",
+        options: [
+          { key: "A", text: "Vì nơi đó có một cánh cổng lớn do con người xây dựng trên đỉnh núi." },
+          { key: "B", text: "Vì đó là khoảng trời rộng lớn mở ra giữa hai bên vách đá cao ngất trên đỉnh núi." },
+          { key: "C", text: "Vì đó là nơi mây phủ quanh năm không bao giờ nhìn thấy mặt trời." },
+          { key: "D", text: "Vì đó là con đường duy nhất dẫn lên vầng trăng." }
+        ],
+        correct: "B",
+        explanation: "Khoảng không bao la mở ra giữa hai vách núi cao gợi hình ảnh tựa như một 'cổng trời' thiên nhiên kỳ vĩ trên mặt đất."
+      },
+      {
+        part: "Bài đọc: Cổng trời",
+        question: "Từ 'cổng trời' nhìn ra xa, cảnh vật thiên nhiên hiện ra với những hình ảnh sinh động nào?",
+        options: [
+          { key: "A", text: "Biển cả mênh mông và những con sóng bạc đầu." },
+          { key: "B", text: "Cỏ hoa bao sắc màu, con thác réo ngân nga, đàn dê soi đáy suối." },
+          { key: "C", text: "Những tòa nhà cao tầng và dòng xe chật nát." },
+          { key: "D", text: "Cánh đồng lúa mì vàng ươm dưới ánh mặt trời." }
+        ],
+        correct: "B",
+        explanation: "Bài thơ miêu tả: 'Nhìn ra xa ngút ngát / Bao sắc màu cỏ hoa / Con thác réo ngân nga / Đàn dê soi đáy suối.'"
+      },
+      {
+        part: "Bài đọc: Cổng trời",
+        question: "Bức tranh thiên nhiên núi rừng nguyên sơ ở các khổ thơ tiếp theo được chấm phá bằng những hình ảnh trù phú nào?",
+        options: [
+          { key: "A", text: "Những hàng dừa xanh và bãi cát trắng mịn." },
+          { key: "B", text: "Ráng chiều như hơi khói, vạt nương màu mật, lúa chín ngập lòng thung." },
+          { key: "C", text: "Rừng trúc xanh rì và dòng sông uốn lượn." },
+          { key: "D", text: "Tuyết phủ trắng xóa trên các rặng cây khô." }
+        ],
+        correct: "B",
+        explanation: "Khổ 3 và 4 gợi tả cảnh trù phú qua 'vạt nương màu mật', 'lúa chín ngập lòng thung' cùng tiếng nhạc ngựa ngân vang."
+      },
+      {
+        part: "Bài đọc: Cổng trời",
+        question: "Cuộc sống lao động của đồng bào các dân tộc (Người Tày, người Giáy, người Dao) ở vùng cao hiện lên như thế nào?",
+        options: [
+          { key: "A", text: "Vội vã, hối hả trong tiếng máy móc công nghiệp." },
+          { key: "B", text: "Cần cù, nhộn nhịp đi gặt lúa, trồng rau, tìm măng, hái nấm làm ấm áp cả không gian sương giá." },
+          { key: "C", text: "Trầm lặng, khép kín trong những ngôi nhà sàn." },
+          { key: "D", text: "Vui chơi ca hát quanh đốm lửa suốt ngày đêm mà không làm việc." }
+        ],
+        correct: "B",
+        explanation: "Các dân tộc cùng nhau gặt lúa, trồng rau, hái nấm; vạt áo chàm thấp thoáng làm ấm bừng cả không gian rừng sương giá."
+      },
+      {
+        part: "Bài đọc: Cổng trời",
+        question: "Theo phần chú giải trong bài học, từ 'nguyên sơ' có nghĩa là gì?",
+        options: [
+          { key: "A", text: "Cảnh vật mới được con người cải tạo và xây dựng gần đây." },
+          { key: "B", text: "Còn nguyên vẻ tự nhiên như lúc ban đầu." },
+          { key: "C", text: "Cảnh vật hoang tàn, u uất do thiên tai gây ra." },
+          { key: "D", text: "Đất đai khô cằn không có cây cối sinh sống." }
+        ],
+        correct: "B",
+        explanation: "Theo phần chú giải sách giáo khoa: 'Nguyên sơ' có nghĩa là còn giữ nguyên vẻ tự nhiên mộc mạc như lúc ban đầu."
+      },
+      {
+        part: "Luyện từ và câu: Từ đồng nghĩa",
+        question: "Dựa vào phần Ghi nhớ trang 48, khái niệm từ đồng nghĩa được phát biểu như thế nào?",
+        options: [
+          { key: "A", text: "Từ đồng nghĩa là những từ có nghĩa hoàn toàn trái ngược nhau." },
+          { key: "B", text: "Từ đồng nghĩa là những từ có nghĩa giống nhau hoặc gần giống nhau." },
+          { key: "C", text: "Từ đồng nghĩa là những từ có âm giống nhau nhưng nghĩa khác xa nhau." },
+          { key: "D", text: "Từ đồng nghĩa là những từ chỉ dùng trong bài văn miêu tả." }
+        ],
+        correct: "B",
+        explanation: "Từ đồng nghĩa là những từ có nghĩa giống nhau (như bố, ba, cha) hoặc gần giống nhau (như ăn, xơi, chén)."
+      },
+      {
+        part: "Luyện từ và câu: Từ đồng nghĩa",
+        question: "Dãy từ nào dưới đây gồm các từ đồng nghĩa hoàn toàn (nghĩa giống hệt nhau, có thể thay thế cho nhau trong hầu hết ngữ cảnh)?",
+        options: [
+          { key: "A", text: "ăn, xơi, chén" },
+          { key: "B", text: "bố, ba, cha" },
+          { key: "C", text: "chạy, nhảy, đi" },
+          { key: "D", text: "xanh, đỏ, vàng" }
+        ],
+        correct: "B",
+        explanation: "'Bố, ba, cha' cùng chỉ đấng sinh thành, đồng nghĩa hoàn toàn; còn 'ăn, xơi, chén' khác nhau về sắc thái tình cảm."
+      },
+      {
+        part: "Luyện từ và câu: Từ đồng nghĩa",
+        question: "Dãy từ nào dưới đây gồm các từ đồng nghĩa chỉ phẩm chất cần cù, chăm chỉ của con người?",
+        options: [
+          { key: "A", text: "yên bình, tĩnh lặng, thanh bình" },
+          { key: "B", text: "chăm chỉ, cần cù, siêng năng, chịu khó" },
+          { key: "C", text: "non sông, đất nước, giang sơn" },
+          { key: "D", text: "to lớn, vĩ đại, khổng lồ" }
+        ],
+        correct: "B",
+        explanation: "Các từ 'chăm chỉ, cần cù, siêng năng, chịu khó' đều đồng nghĩa và thể hiện đức tính kiên trì, chịu thương chịu khó."
+      },
+      {
+        part: "Luyện từ và câu: Từ đồng nghĩa",
+        question: "Thành ngữ nào dưới đây chứa cặp từ đồng nghĩa 'ngăn' và 'cấm'?",
+        options: [
+          { key: "A", text: "Chân yếu tay mềm" },
+          { key: "B", text: "Thức khuya dậy sớm" },
+          { key: "C", text: "Ngăn sông cấm chợ" },
+          { key: "D", text: "Một nắng hai sương" }
+        ],
+        correct: "C",
+        explanation: "Trong thành ngữ 'Ngăn sông cấm chợ', hai từ 'ngăn' và 'cấm' đều đồng nghĩa, chỉ sự cản trở và cấm đoán đi lại buôn bán."
+      },
+      {
+        part: "Luyện từ và câu: Từ đồng nghĩa",
+        question: "Trong đoạn văn tả đàn kiến: 'Đàn kiến tiếp tục công việc của chúng: khuân đất, nhặt lá khô, tha mồi. Kiến vác, kiến lôi, kiến đẩy...', các từ in đậm thuộc nhóm từ gì?",
+        options: [
+          { key: "A", text: "Từ trái nghĩa" },
+          { key: "B", text: "Các từ đồng nghĩa chỉ hoạt động di chuyển vật nặng hoặc mồi" },
+          { key: "C", text: "Danh từ chỉ con vật" },
+          { key: "D", text: "Tính từ chỉ màu sắc" }
+        ],
+        correct: "B",
+        explanation: "Các động từ khuân, tha, vác, lôi, đẩy đều là những từ đồng nghĩa miêu tả cách thức vận chuyển vật nặng của bầy kiến."
+      },
+      {
+        part: "Viết: Tả phong cảnh",
+        question: "Cấu trúc một bài văn tả phong cảnh thông thường gồm có mấy phần chính?",
+        options: [
+          { key: "A", text: "2 phần: Mở bài và Thân bài." },
+          { key: "B", text: "3 phần: Mở bài, Thân bài và Kết bài." },
+          { key: "C", text: "4 phần: Mở bài, Diễn biến, Kết quả, Kết bài." },
+          { key: "D", text: "3 phần: Giới thiệu, Kể chuyện, Bài học." }
+        ],
+        correct: "B",
+        explanation: "Bài văn tả phong cảnh gồm 3 phần: Mở bài (giới thiệu cảnh), Thân bài (tả từng phần hoặc biến đổi), Kết bài (nêu cảm nghĩ)."
+      },
+      {
+        part: "Viết: Tả phong cảnh",
+        question: "Trong bài văn mẫu 'Đà Lạt' (trang 49), phần Thân bài được tác giả triển khai miêu tả theo trật tự nào?",
+        options: [
+          { key: "A", text: "Tả theo trình tự thời gian từ sáng sớm đến đêm muộn." },
+          { key: "B", text: "Tả lần lượt vẻ đẹp do thiên nhiên ưu đãi và vẻ đẹp do con người tạo nên." },
+          { key: "C", text: "Tả từ dưới thấp lên trên cao." },
+          { key: "D", text: "Tả theo góc nhìn từ trên máy bay xuống." }
+        ],
+        correct: "B",
+        explanation: "Tác giả chia Thân bài thành: vẻ đẹp thiên nhiên (khí hậu, suối, thác, bầu trời) và nét đẹp con người kiến tạo (vườn rau, vườn hoa)."
+      },
+      {
+        part: "Viết: Tả phong cảnh",
+        question: "Nhiệm vụ chính của phần Mở bài trong bài văn tả phong cảnh là gì?",
+        options: [
+          { key: "A", text: "Miêu tả chi tiết từng đường nét, màu sắc của cảnh vật." },
+          { key: "B", text: "Nêu cảm nghĩ và bài học rút ra của bản thân." },
+          { key: "C", text: "Giới thiệu khái quát về phong cảnh sẽ miêu tả." },
+          { key: "D", text: "Liệt kê danh sách các loài động vật sống ở nơi đó." }
+        ],
+        correct: "C",
+        explanation: "Theo ghi nhớ cấu trúc bài tập làm văn: Phần Mở bài giữ nhiệm vụ giới thiệu khái quát về phong cảnh được chọn miêu tả."
+      },
+      {
+        part: "Bài đọc: Kì diệu rừng xanh",
+        question: "Trong đoạn 1 bài đọc 'Kì diệu rừng xanh', vì sao nhân vật 'tôi' lại có cảm giác như mình là 'người khổng lồ đi lạc vào kinh đô của vương quốc những người tí hon'?",
+        options: [
+          { key: "A", text: "Vì trong rừng có rất nhiều ngôi nhà nhỏ do người tí hon tự xây." },
+          { key: "B", text: "Vì những chiếc nấm dại to bằng cái ấm tích mọc lúp xúp trông giống lâu đài, cung điện thu nhỏ." },
+          { key: "C", text: "Vì các con thú trong rừng đều bé tẹo." },
+          { key: "D", text: "Vì nhân vật 'tôi' nằm mơ thấy mình biến thành người khổng lồ." }
+        ],
+        correct: "B",
+        explanation: "Nấm dại to bằng ấm tích, màu rực rỡ như những tòa lâu đài, đền đài của người tí hon lúp xúp dưới chân."
+      },
+      {
+        part: "Bài đọc: Kì diệu rừng xanh",
+        question: "Sự xuất hiện của các loài muông thú (vượn bạc má, chồn sóc) làm cho khu rừng sâu ẩm lạnh trở nên như thế nào?",
+        options: [
+          { key: "A", text: "Tĩnh lặng và u uất hơn." },
+          { key: "B", text: "Nhộn nhịp, chuyển động rào rào và tràn đầy sức sống." },
+          { key: "C", text: "Trở nên vô cùng nguy hiểm đối với du khách." },
+          { key: "D", text: "Khô ráo và rợp bóng mát." }
+        ],
+        correct: "B",
+        explanation: "Những chú vượn chuyền cành, sóc vút qua làm cánh rừng rào rào chuyển động, bừng tỉnh và tràn đầy sinh khí."
+      },
+      {
+        part: "Bài đọc: Kì diệu rừng xanh",
+        question: "Vì sao cảnh vật rừng khộp ở đoạn 3 lại được tác giả gọi là 'giang sơn vàng rợi'?",
+        options: [
+          { key: "A", text: "Vì cây rừng khộp được dát một lớp vàng thật." },
+          { key: "B", text: "Vì có sự hòa quyện rực rỡ của thảm lá úa vàng, đàn mang vàng và sắc nắng rực vàng trên lưng." },
+          { key: "C", text: "Vì trời mùa hè chiếu ánh nắng vàng rực xuống thảm cỏ xanh." },
+          { key: "D", text: "Vì trong rừng trồng toàn hoa cúc vàng." }
+        ],
+        correct: "B",
+        explanation: "Màu vàng của thảm lá khộp rụng hòa quyện cùng sắc vàng của con mang và ánh nắng rực rỡ tạo nên 'giang sơn vàng rợi'."
+      },
+      {
+        part: "Bài đọc: Kì diệu rừng xanh",
+        question: "Từ nào dưới đây đồng nghĩa với từ 'tí hon' trong bài đọc?",
+        options: [
+          { key: "A", text: "to lớn" },
+          { key: "B", text: "nhỏ bé, bé tẹo, tí xíu" },
+          { key: "C", text: "mênh mông" },
+          { key: "D", text: "cao vút" },
+        ],
+        correct: "B",
+        explanation: "Đồng nghĩa với từ 'tí hon' là các từ chỉ kích thước rất nhỏ: 'nhỏ bé', 'bé tẹo', 'nhỏ xíu', 'bé xíu'."
+      },
+      {
+        part: "Viết: Tả phong cảnh (tiếp)",
+        question: "Bài văn mẫu 'Bốn mùa trong ánh nước' (trang 53) miêu tả vẻ đẹp của cảnh quan nổi tiếng nào ở Hà Nội?",
+        options: [
+          { key: "A", text: "Hồ Tây" },
+          { key: "B", text: "Hồ Hoàn Kiếm (Hồ Gươm)" },
+          { key: "C", text: "Sông Hồng" },
+          { key: "D", text: "Hồ Trúc Bạch" }
+        ],
+        correct: "B",
+        explanation: "Bài văn ngợi ca vẻ đẹp bốn mùa lộng lẫy và sắc nước xanh trong gợn sóng của Hồ Hoàn Kiếm (Hồ Gươm)."
+      },
+      {
+        part: "Viết: Tả phong cảnh (tiếp)",
+        question: "Trình tự miêu tả ở phần Thân bài của bài 'Bốn mùa trong ánh nước' có điểm gì khác biệt so với bài 'Đà Lạt'?",
+        options: [
+          { key: "A", text: "Tả cảnh từ trên cao nhìn xuống dưới thấp." },
+          { key: "B", text: "Tả cảnh Hồ Hoàn Kiếm biến đổi theo trình tự thời gian qua bốn mùa trong năm." },
+          { key: "C", text: "Tả cảnh từ góc nhìn của người đi tàu thủy." },
+          { key: "D", text: "Tả cảnh theo thứ tự từ trong nhà ra ngoài sân." }
+        ],
+        correct: "B",
+        explanation: "Bài 'Đà Lạt' tả theo từng vẻ đẹp không gian, còn bài 'Bốn mùa trong ánh nước' tả cảnh chuyển sắc theo thời gian 4 mùa."
+      },
+      {
+        part: "Viết: Tả phong cảnh (tiếp)",
+        question: "Dựa vào phần Ghi nhớ trang 54, ngoài cách tả lần lượt từng phần của cảnh, người viết có thể chọn trình tự nào khác?",
+        options: [
+          { key: "A", text: "Trình tự thời gian (theo mùa, theo buổi trong ngày, sự đổi thay theo năm tháng) hoặc kết hợp cả hai." },
+          { key: "B", text: "Trình tự cảm xúc của tác giả từ buồn giận sang vui vẻ." },
+          { key: "C", text: "Trình tự thống kê các loại thực vật mọc quanh hồ." },
+          { key: "D", text: "Trình tự hội thoại giữa hai người bạn." }
+        ],
+        correct: "A",
+        explanation: "Người viết có thể tả phong cảnh theo trình tự thời gian (buổi, mùa, năm tháng) hoặc phối hợp linh hoạt cả hai cách."
+      }
+    ];
+
+    // --- GAME STATE ---
+    let currentIndex = 0;
+    let score = 0;
+    let hasAnswered = false;
+    let synth = window.speechSynthesis;
+    let viVoice = null;
+
+    // Load Vietnamese Voice if available
+    function initVoices() {
+      if (!('speechSynthesis' in window)) return;
+      const voices = synth.getVoices();
+      viVoice = voices.find(v => v.lang === 'vi-VN' || v.lang.startsWith('vi')) || null;
+    }
+    initVoices();
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = initVoices;
+    }
+
+    // --- WEB AUDIO API (SOUND EFFECTS) ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new AudioContext();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function playSound(type) {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        if (type === 'correct') {
+          // Cheerful chime: C5 -> E5 -> G5 -> C6
+          const freqs = [523.25, 659.25, 783.99, 1046.50];
+          freqs.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+            gain.gain.setValueAtTime(0.18, now + idx * 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.35);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.08);
+            osc.stop(now + idx * 0.08 + 0.36);
+          });
+        } else if (type === 'wrong') {
+          // Gentle low boing
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(110, now + 0.3);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.36);
+        } else if (type === 'victory') {
+          // Grand fanfare
+          const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+          notes.forEach((f, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f, now + i * 0.12);
+            gain.gain.setValueAtTime(0.2, now + i * 0.12);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.6);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + i * 0.12);
+            osc.stop(now + i * 0.12 + 0.65);
+          });
+        }
+      } catch (e) {
+        console.warn("Web Audio not allowed or failed:", e);
+      }
+    }
+
+    // --- TEXT TO SPEECH (WEB SPEECH API) ---
+    function stopSpeech() {
+      if (synth && synth.speaking) {
+        synth.cancel();
+      }
+      setVoiceIndicator(false);
+    }
+
+    function setVoiceIndicator(isSpeaking, text = "Đang đọc...") {
+      const ind = document.getElementById('voiceIndicator');
+      const txt = document.getElementById('voiceText');
+      if (isSpeaking) {
+        ind.classList.add('speaking');
+        txt.textContent = text;
+      } else {
+        ind.classList.remove('speaking');
+        txt.textContent = "Sẵn sàng";
+      }
+    }
+
+    function speakText(text, onComplete = null) {
+      if (!('speechSynthesis' in window)) return;
+      stopSpeech();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95; // clear and child-friendly tempo
+      utterance.pitch = 1.05;
+      if (viVoice) {
+        utterance.voice = viVoice;
+        utterance.lang = viVoice.lang;
+      } else {
+        utterance.lang = 'vi-VN';
+      }
+
+      utterance.onstart = () => setVoiceIndicator(true, "Đang đọc...");
+      utterance.onend = () => {
+        setVoiceIndicator(false);
+        if (onComplete) onComplete();
+      };
+      utterance.onerror = () => setVoiceIndicator(false);
+
+      synth.speak(utterance);
+    }
+
+    // --- GAME FLOW LOGIC ---
+    const startScreen = document.getElementById('startScreen');
+    const quizScreen = document.getElementById('quizScreen');
+    const resultScreen = document.getElementById('resultScreen');
+
+    const btnStart = document.getElementById('btnStartGame');
+    const btnRestart = document.getElementById('btnRestart');
+    const btnNext = document.getElementById('btnNextQuestion');
+    const btnReplay = document.getElementById('btnReplayAudio');
+
+    const topicBadge = document.getElementById('topicName');
+    const qNum = document.getElementById('questionNumber');
+    const qText = document.getElementById('questionText');
+    const optionsContainer = document.getElementById('optionsContainer');
+    const explanationBox = document.getElementById('explanationBox');
+    const explanationText = document.getElementById('explanationText');
+    const progressBar = document.getElementById('progressBar');
+    const currentScoreEl = document.getElementById('currentScore');
+
+    btnStart.addEventListener('click', () => {
+      getAudioContext(); // user gesture unlock
+      startScreen.classList.remove('active');
+      resultScreen.classList.remove('active');
+      quizScreen.classList.add('active');
+      currentIndex = 0;
+      score = 0;
+      currentScoreEl.textContent = "0";
+      loadQuestion();
+    });
+
+    btnRestart.addEventListener('click', () => {
+      resultScreen.classList.remove('active');
+      quizScreen.classList.add('active');
+      currentIndex = 0;
+      score = 0;
+      currentScoreEl.textContent = "0";
+      loadQuestion();
+    });
+
+    btnNext.addEventListener('click', () => {
+      stopSpeech();
+      currentIndex++;
+      if (currentIndex < quizData.length) {
+        loadQuestion();
+      } else {
+        showResults();
+      }
+    });
+
+    btnReplay.addEventListener('click', () => {
+      const q = quizData[currentIndex];
+      if (!hasAnswered) {
+        readFullQuestion(q);
+      } else {
+        readExplanationOnly(q);
+      }
+    });
+
+    function loadQuestion() {
+      hasAnswered = false;
+      btnNext.style.display = 'none';
+      explanationBox.style.display = 'none';
+
+      const q = quizData[currentIndex];
+      topicBadge.textContent = q.part;
+      qNum.textContent = `Câu ${currentIndex + 1} / ${quizData.length}`;
+      qText.textContent = q.question;
+      currentScoreEl.textContent = score;
+
+      // Update progress bar
+      const progressPercent = ((currentIndex) / quizData.length) * 100;
+      progressBar.style.width = `${progressPercent}%`;
+
+      // Render options
+      optionsContainer.innerHTML = '';
+      q.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.setAttribute('data-key', opt.key);
+        btn.innerHTML = `<span class="opt-tag">${opt.key}</span> <span>${opt.text}</span>`;
+        btn.addEventListener('click', () => selectAnswer(opt.key));
+        optionsContainer.appendChild(btn);
+      });
+
+      // Speak question and choices automatically
+      readFullQuestion(q);
+    }
+
+    function readFullQuestion(q) {
+      let speechScript = `Câu ${currentIndex + 1}. ${q.question}. `;
+      q.options.forEach(o => {
+        speechScript += `Đáp án ${o.key}: ${o.text}. `;
+      });
+      speakText(speechScript);
+    }
+
+    function selectAnswer(selectedKey) {
+      if (hasAnswered) return;
+      hasAnswered = true;
+      stopSpeech();
+
+      const q = quizData[currentIndex];
+      const isCorrect = (selectedKey === q.correct);
+      const allBtns = optionsContainer.querySelectorAll('.option-btn');
+
+      allBtns.forEach(btn => {
+        btn.disabled = true;
+        const key = btn.getAttribute('data-key');
+        if (key === q.correct) {
+          btn.classList.add('correct');
+        } else if (key === selectedKey) {
+          btn.classList.add('wrong');
+        }
+      });
+
+      if (isCorrect) {
+        score++;
+        currentScoreEl.textContent = score;
+        playSound('correct');
+      } else {
+        playSound('wrong');
+      }
+
+      // Show explanation
+      explanationBox.style.display = 'block';
+      explanationText.textContent = q.explanation;
+      btnNext.style.display = 'inline-flex';
+
+      // Read Feedback & Explanation out loud
+      readExplanationOnly(q, isCorrect);
+    }
+
+    function readExplanationOnly(q, isCorrect = null) {
+      let message = "";
+      if (isCorrect !== null) {
+        message = isCorrect ? "Chính xác! Hoan hô em. " : "Chưa chính xác rồi. ";
+      }
+      message += `Đáp án đúng là ${q.correct}. Giải thích: ${q.explanation}`;
+      speakText(message);
+    }
+
+    function showResults() {
+      stopSpeech();
+      quizScreen.classList.remove('active');
+      resultScreen.classList.add('active');
+
+      const finalScoreEl = document.getElementById('finalScore');
+      const resultTitleEl = document.getElementById('resultTitle');
+      const resultFeedbackEl = document.getElementById('resultFeedback');
+      const resultIconEl = document.getElementById('resultIcon');
+
+      finalScoreEl.textContent = `${score} / ${quizData.length}`;
+
+      playSound('victory');
+      triggerConfetti();
+
+      let closingSpeech = "";
+      if (score >= 18) {
+        resultIconEl.textContent = "🏆";
+        resultTitleEl.textContent = "Quá Xuất Sắc!";
+        resultFeedbackEl.textContent = "Em là bậc thầy khám phá thiên nhiên kì thú và từ đồng nghĩa!";
+        closingSpeech = `Chúc mừng em đã hoàn thành xuất sắc thử thách với số điểm ${score} trên 20! Em nắm bài rất vững.`;
+      } else if (score >= 14) {
+        resultIconEl.textContent = "🎉";
+        resultTitleEl.textContent = "Kết Quả Rất Tốt!";
+        resultFeedbackEl.textContent = "Em có kiến thức rất vững vàng, rèn luyện thêm chút nữa là đạt điểm tối đa!";
+        closingSpeech = `Chúc mừng em đã đạt ${score} trên 20 điểm. Một kết quả rất tuyệt vời!`;
+      } else {
+        resultIconEl.textContent = "🌱";
+        resultTitleEl.textContent = "Cố Gắng Lên Nhé!";
+        resultFeedbackEl.textContent = "Em hãy xem lại các bài đọc và bài Luyện từ và câu để làm tốt hơn ở lần sau nhé!";
+        closingSpeech = `Em đạt ${score} trên 20 điểm. Hãy cùng ôn lại bài học và thử sức lại lần nữa nhé!`;
+      }
+
+      setTimeout(() => {
+        speakText(closingSpeech);
+      }, 500);
+    }
+
+    // --- CELEBRATION CONFETTI EFFECT ---
+    function triggerConfetti() {
+      const canvas = document.getElementById('confettiCanvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#eab308'];
+
+      for (let i = 0; i < 110; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height - canvas.height,
+          size: Math.random() * 9 + 4,
+          speedY: Math.random() * 4 + 2,
+          speedX: (Math.random() - 0.5) * 3,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 6
+        });
+      }
+
+      let frameCount = 0;
+      function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+          p.y += p.speedY;
+          p.x += p.speedX;
+          p.rotation += p.rotSpeed;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+          ctx.restore();
+
+          if (p.y > canvas.height) {
+            p.y = -10;
+            p.x = Math.random() * canvas.width;
+          }
+        });
+
+        frameCount++;
+        if (frameCount < 240) {
+          requestAnimationFrame(render);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      render();
+    }
+
+    window.addEventListener('resize', () => {
+      const canvas = document.getElementById('confettiCanvas');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+  </script>
+</body>
+</html>"""
+
+with open("index.html", "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+print("Created index.html successfully.")
